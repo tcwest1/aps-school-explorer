@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>APS School Explorer</title>
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  :root {
+    --aps-navy:#0e3a53;
+    --aps-blue:#1b5e8a;
+    --aps-teal:#2b8c9e;
+    --aps-sky:#e8f3f9;
+    --ink:#183043;
+    --muted:#5f7381;
+    --border:#d9e3ea;
+    --bg:#f5f8fb;
+    --card:#ffffff;
+    --gold:#f2c14e;
+    --shadow:0 12px 28px rgba(14,58,83,.10);
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif; background:var(--bg); color:var(--ink);
+  }
+  .topbar {
+    background: linear-gradient(135deg, var(--aps-navy), var(--aps-blue));
+    color:#fff; padding:18px 24px; box-shadow:var(--shadow); position:sticky; top:0; z-index:1000;
+  }
+  .brand {
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  .logo {
+    width:44px; height:44px; border-radius:12px;
+    background:linear-gradient(135deg, #fff 0%, #d8edf6 100%);
+    color:var(--aps-navy); display:grid; place-items:center; font-weight:800; letter-spacing:.5px;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
+  }
+  .brand h1 { margin:0; font-size:1.45rem; }
+  .brand p { margin:4px 0 0; color:rgba(255,255,255,.86); font-size:.95rem; }
+  .shell {
+    display:grid; grid-template-columns: 340px minmax(0,1fr) 360px; gap:16px;
+    padding:16px; min-height:calc(100vh - 86px);
+  }
+  .panel {
+    background:var(--card); border:1px solid var(--border); border-radius:20px; box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .panel-header {
+    padding:16px 18px 10px; border-bottom:1px solid #edf2f6;
+  }
+  .panel-title { margin:0; font-size:1rem; font-weight:700; }
+  .panel-subtitle { margin:6px 0 0; color:var(--muted); font-size:.88rem; }
+  .controls { padding:16px 18px 18px; display:grid; gap:12px; }
+  .control label { display:block; font-size:.82rem; color:var(--muted); margin-bottom:6px; font-weight:600; }
+  .control input, .control select {
+    width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:12px; background:#fff; color:var(--ink);
+    font:inherit;
+  }
+  .checkbox-group { display:grid; gap:8px; }
+  .checkbox {
+    display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:12px; background:#fff;
+  }
+  .checkbox input { width:auto; }
+  .btn-row { display:flex; gap:10px; flex-wrap:wrap; }
+  button {
+    border:none; border-radius:12px; padding:10px 14px; font:inherit; cursor:pointer; font-weight:700;
+  }
+  .btn-primary { background:var(--aps-navy); color:#fff; }
+  .btn-secondary { background:#eef4f8; color:var(--aps-navy); }
+  .stats {
+    display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:0 18px 18px;
+  }
+  .stat {
+    background:linear-gradient(180deg,#fff,#f8fbfd); border:1px solid var(--border); border-radius:16px; padding:14px;
+  }
+  .stat .k { font-size:1.35rem; font-weight:800; }
+  .stat .t { color:var(--muted); font-size:.82rem; margin-top:4px; }
+  .main {
+    display:grid; grid-template-rows: minmax(420px, 55vh) auto; gap:16px;
+  }
+  #map { width:100%; height:100%; min-height:420px; }
+  .map-wrap { position:relative; }
+  .legend {
+    position:absolute; right:12px; bottom:12px; z-index:500;
+    background:rgba(255,255,255,.96); border:1px solid var(--border); border-radius:14px; padding:10px 12px; box-shadow:var(--shadow); font-size:.82rem;
+  }
+  .legend-row { display:flex; align-items:center; gap:8px; margin:4px 0; }
+  .dot { width:12px; height:12px; border-radius:999px; display:inline-block; }
+  .table-wrap { overflow:auto; }
+  table { width:100%; border-collapse:separate; border-spacing:0; }
+  thead th {
+    position:sticky; top:0; background:#f7fafc; z-index:1; text-align:left; padding:12px 14px; font-size:.85rem; color:var(--muted); border-bottom:1px solid var(--border);
+    cursor:pointer; user-select:none;
+  }
+  tbody td { padding:12px 14px; border-bottom:1px solid #eef3f6; font-size:.93rem; vertical-align:top; }
+  tbody tr:hover { background:#fafcfe; }
+  .chip {
+    display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:5px 10px; font-size:.74rem; font-weight:700; margin:0 6px 6px 0;
+    border:1px solid transparent;
+  }
+  .chip.yes { background:#e7f6ee; color:#146c43; border-color:#b9e6cb; }
+  .chip.no { background:#f4f6f8; color:#637381; border-color:#dde6ee; }
+  .chip.info { background:#e8f3f9; color:var(--aps-blue); border-color:#c5dfed; }
+  .school-list {
+    padding:0 18px 18px; max-height:280px; overflow:auto;
+  }
+  .school-item {
+    padding:12px 0; border-bottom:1px solid #eef3f6; cursor:pointer;
+  }
+  .school-item:last-child { border-bottom:none; }
+  .school-item h4 { margin:0 0 4px; font-size:.95rem; }
+  .school-item p { margin:0; color:var(--muted); font-size:.84rem; }
+  .detail {
+    padding:16px 18px 18px;
+  }
+  .detail h2 { margin:0 0 10px; font-size:1.25rem; }
+  .detail-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  }
+  .detail-card {
+    border:1px solid var(--border); border-radius:16px; padding:12px; background:#fbfdff;
+  }
+  .detail-card .label { font-size:.76rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .detail-card .value { font-size:1rem; font-weight:700; margin-top:6px; }
+  .langs {
+    margin-top:14px; padding:12px; background:#f8fbfd; border:1px solid var(--border); border-radius:16px;
+  }
+  .langs strong { display:block; margin-bottom:8px; }
+  .empty {
+    padding:24px 18px; color:var(--muted);
+  }
+  .footer-note {
+    padding:0 18px 18px; color:var(--muted); font-size:.8rem;
+  }
+  @media (max-width: 1200px) {
+    .shell { grid-template-columns: 320px 1fr; }
+    .right-panel { grid-column: 1 / -1; }
+  }
+  @media (max-width: 860px) {
+    .shell { grid-template-columns:1fr; }
+    .main { grid-template-rows: 420px auto; }
+    .stats { grid-template-columns:repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">APS</div>
+      <div>
+        <h1>APS School Explorer</h1>
+        <p>Interactive school finder for families with filters, map view, and school details.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="shell">
+    <aside class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Filters</h2>
+        <p class="panel-subtitle">Narrow schools by type, programs, geography, and enrollment.</p>
+      </div>
+      <div class="controls">
+        <div class="control">
+          <label for="searchInput">Search by school name</label>
+          <input id="searchInput" type="text" placeholder="Start typing a school name…" />
+        </div>
+        <div class="control">
+          <label for="levelFilter">School level</label>
+          <select id="levelFilter">
+            <option value="">All levels</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="districtFilter">School board district</label>
+          <select id="districtFilter">
+            <option value="">All districts</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="calendarFilter">Calendar</label>
+          <select id="calendarFilter">
+            <option value="">All calendars</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="zipFilter">ZIP code</label>
+          <select id="zipFilter">
+            <option value="">All ZIP codes</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="minEnrollment">Minimum enrollment</label>
+          <input id="minEnrollment" type="range" min="0" max="3000" step="25" value="0" />
+          <div class="panel-subtitle"><span id="minEnrollmentValue">0</span> students or more</div>
+        </div>
+        <div class="control">
+          <label>Programs and flags</label>
+          <div class="checkbox-group">
+            <label class="checkbox"><input type="checkbox" id="abcOnly"> ABC Community School only</label>
+            <label class="checkbox"><input type="checkbox" id="bilingualOnly"> Bilingual program only</label>
+            <label class="checkbox"><input type="checkbox" id="specialEdOnly"> Special education hub only</label>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-primary" id="applyFilters">Apply filters</button>
+          <button class="btn-secondary" id="resetFilters">Reset</button>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="k" id="schoolCount">0</div><div class="t">Schools shown</div></div>
+        <div class="stat"><div class="k" id="studentCount">0</div><div class="t">Students represented</div></div>
+        <div class="stat"><div class="k" id="abcCount">0</div><div class="t">ABC schools</div></div>
+        <div class="stat"><div class="k" id="bilingualCount">0</div><div class="t">Bilingual schools</div></div>
+      </div>
+      <div class="panel-header">
+        <h2 class="panel-title">Matching schools</h2>
+      </div>
+      <div class="school-list" id="schoolList"></div>
+      <div class="footer-note">Tip: click a school in the list, table, or map to open the detail panel.</div>
+    </aside>
+
+    <main class="main">
+      <section class="panel map-wrap">
+        <div id="map"></div>
+        <div class="legend">
+          <div class="legend-row"><span class="dot" style="background:#1b5e8a"></span> Elementary</div>
+          <div class="legend-row"><span class="dot" style="background:#2b8c9e"></span> Middle / K-8</div>
+          <div class="legend-row"><span class="dot" style="background:#f2c14e"></span> High / Alternative</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">School table</h2>
+          <p class="panel-subtitle">Sort columns by clicking the headers.</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th data-sort="school_name">School</th>
+                <th data-sort="level">Level</th>
+                <th data-sort="enrollment">Enrollment</th>
+                <th data-sort="school_board_district">Board district</th>
+                <th>Programs</th>
+              </tr>
+            </thead>
+            <tbody id="schoolTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <aside class="panel right-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">School details</h2>
+        <p class="panel-subtitle">Select a school to see key information for families.</p>
+      </div>
+      <div class="detail" id="detailPanel">
+        <div class="empty">No school selected yet.</div>
+      </div>
+    </aside>
+  </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+let schools = [];
+const sortState = { key: 'school_name', dir: 'asc' };
+let filteredSchools = [];
+let selectedId = null;
+
+const map = L.map('map', { zoomControl: true, preferCanvas: true });
+const apsBounds = L.latLngBounds(
+  [34.87, -106.86],
+  [35.29, -106.33]
+);
+map.fitBounds(apsBounds.pad(0.02));
+map.setMaxBounds(apsBounds.pad(0.25));
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 18,
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+const markerLayer = L.layerGroup().addTo(map);
+
+function normalizeSchool(raw, index) {
+  const asNumber = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
+  const toText = (value) => value === null || value === undefined ? '' : String(value).trim();
+  return {
+    ...raw,
+    __id: toText(raw.objectid) || `school-${index + 1}`,
+    school_name: toText(raw.school_name),
+    level: toText(raw.level),
+    enrollment: asNumber(raw.enrollment) ?? 0,
+    abc_community_school: toText(raw.abc_community_school) || 'No',
+    bilingual_education_program: toText(raw.bilingual_education_program) || 'No',
+    special_ed_hub: toText(raw.special_ed_hub) || 'No',
+    calendar: toText(raw.calendar),
+    school_board_district: toText(raw.school_board_district),
+    school_established_date: asNumber(raw.school_established_date) ?? toText(raw.school_established_date),
+    home_language_other_than_english: toText(raw.home_language_other_than_english),
+    objectid: toText(raw.objectid),
+    zip_code: toText(raw.zip_code),
+    longitude: asNumber(raw.longitude),
+    latitude: asNumber(raw.latitude)
+  };
+}
+
+async function loadSchools() {
+  try {
+    const response = await fetch('./data.json', { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const data = await response.json();
+    if (!Array.isArray(data)) {
+      throw new Error('data.json did not contain an array of schools.');
+    }
+    schools = data.map(normalizeSchool);
+    filteredSchools = [...schools];
+    selectedId = schools[0]?.__id ?? null;
+    setupFilters();
+    applyFilters();
+  } catch (error) {
+    console.error('Failed to load school data from data.json', error);
+    const message = error?.message ? ` ${error.message}` : '';
+    document.getElementById('schoolList').innerHTML = `<div class="empty">Unable to load school data from data.json.${message}</div>`;
+    document.getElementById('schoolTableBody').innerHTML = '<tr><td colspan="5" class="empty">Unable to load school data.</td></tr>';
+    document.getElementById('detailPanel').innerHTML = '<div class="empty">Unable to load school details.</div>';
+  }
+}
+
+function uniq(values) {
+  return [...new Set(values.filter(v => v !== null && v !== undefined && v !== ''))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+}
+
+function formatNumber(n) {
+  return new Intl.NumberFormat('en-US').format(n || 0);
+}
+
+function levelLabel(level) {
+  const map = {
+    ES: 'Elementary',
+    MS: 'Middle',
+    HS: 'High',
+    'K-8': 'K–8',
+    K8: 'K–8',
+    PK8: 'PreK–8',
+    ALT: 'Alternative',
+    Other: 'Other',
+    OTHER: 'Other'
+  };
+  return map[level] || level || 'Unknown';
+}
+
+function markerColor(level) {
+  if (['ES'].includes(level)) return '#1b5e8a';
+  if (['MS', 'K-8', 'K8', 'PK8'].includes(level)) return '#2b8c9e';
+  return '#f2c14e';
+}
+
+function makeIcon(color) {
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `<div style="width:16px;height:16px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.25)"></div>`,
+    iconSize: [16,16],
+    iconAnchor: [8,8],
+    popupAnchor:[0,-6]
+  });
+}
+
+function populateSelect(id, values) {
+  const el = document.getElementById(id);
+  values.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    el.appendChild(opt);
+  });
+}
+
+function setupFilters() {
+  [
+    ['levelFilter', 'All levels'],
+    ['districtFilter', 'All districts'],
+    ['calendarFilter', 'All calendars'],
+    ['zipFilter', 'All ZIP codes']
+  ].forEach(([id, label]) => {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = label;
+    el.appendChild(opt);
+  });
+  populateSelect('levelFilter', uniq(schools.map(s => s.level)));
+  populateSelect('districtFilter', uniq(schools.map(s => s.school_board_district)));
+  populateSelect('calendarFilter', uniq(schools.map(s => s.calendar)));
+  populateSelect('zipFilter', uniq(schools.map(s => s.zip_code)));
+}
+
+function currentFilters() {
+  return {
+    search: document.getElementById('searchInput').value.trim().toLowerCase(),
+    level: document.getElementById('levelFilter').value,
+    district: document.getElementById('districtFilter').value,
+    calendar: document.getElementById('calendarFilter').value,
+    zip: document.getElementById('zipFilter').value,
+    minEnrollment: Number(document.getElementById('minEnrollment').value || 0),
+    abcOnly: document.getElementById('abcOnly').checked,
+    bilingualOnly: document.getElementById('bilingualOnly').checked,
+    specialEdOnly: document.getElementById('specialEdOnly').checked,
+  };
+}
+
+function applyFilters() {
+  const f = currentFilters();
+  filteredSchools = schools.filter(s => {
+    const matchesSearch = !f.search || s.school_name.toLowerCase().includes(f.search);
+    const matchesLevel = !f.level || s.level === f.level;
+    const matchesDistrict = !f.district || s.school_board_district === f.district;
+    const matchesCalendar = !f.calendar || s.calendar === f.calendar;
+    const matchesZip = !f.zip || s.zip_code === f.zip;
+    const matchesEnrollment = (s.enrollment || 0) >= f.minEnrollment;
+    const matchesABC = !f.abcOnly || s.abc_community_school === 'Yes';
+    const matchesBilingual = !f.bilingualOnly || s.bilingual_education_program === 'Yes';
+    const matchesSpecialEd = !f.specialEdOnly || s.special_ed_hub === 'Yes';
+    return matchesSearch && matchesLevel && matchesDistrict && matchesCalendar && matchesZip &&
+      matchesEnrollment && matchesABC && matchesBilingual && matchesSpecialEd;
+  });
+  sortAndRender();
+}
+
+function sortAndRender() {
+  filteredSchools.sort((a,b) => {
+    const av = a[sortState.key];
+    const bv = b[sortState.key];
+    let result;
+    if (typeof av === 'number' && typeof bv === 'number') {
+      result = av - bv;
+    } else {
+      result = String(av ?? '').localeCompare(String(bv ?? ''), undefined, {numeric:true, sensitivity:'base'});
+    }
+    return sortState.dir === 'asc' ? result : -result;
+  });
+  if (!filteredSchools.some(s => s.__id === selectedId)) {
+    selectedId = filteredSchools[0]?.__id ?? null;
+  }
+  renderStats();
+  renderMap();
+  renderList();
+  renderTable();
+  renderDetail();
+}
+
+function renderStats() {
+  document.getElementById('schoolCount').textContent = formatNumber(filteredSchools.length);
+  document.getElementById('studentCount').textContent = formatNumber(filteredSchools.reduce((sum,s) => sum + (s.enrollment || 0), 0));
+  document.getElementById('abcCount').textContent = formatNumber(filteredSchools.filter(s => s.abc_community_school === 'Yes').length);
+  document.getElementById('bilingualCount').textContent = formatNumber(filteredSchools.filter(s => s.bilingual_education_program === 'Yes').length);
+}
+
+function renderMap() {
+  markerLayer.clearLayers();
+  const bounds = [];
+  filteredSchools.forEach(s => {
+    if (typeof s.latitude !== 'number' || typeof s.longitude !== 'number') return;
+    bounds.push([s.latitude, s.longitude]);
+    const popup = `
+      <div style="min-width:220px">
+        <strong>${s.school_name}</strong><br>
+        ${levelLabel(s.level)} · ${formatNumber(s.enrollment)} students<br>
+        ${s.school_board_district} · ZIP ${s.zip_code}<br>
+        ABC: ${s.abc_community_school} · Bilingual: ${s.bilingual_education_program} · Special Ed Hub: ${s.special_ed_hub}<br>
+        <button onclick="selectSchool('${s.__id}')" style="margin-top:8px;background:#0e3a53;color:#fff;border:none;border-radius:8px;padding:6px 10px;cursor:pointer">Open details</button>
+      </div>`;
+    const marker = L.marker([s.latitude, s.longitude], { icon: makeIcon(markerColor(s.level)) })
+      .bindPopup(popup);
+    marker.on('click', () => selectSchool(s.__id, false));
+    markerLayer.addLayer(marker);
+  });
+  if (bounds.length) {
+    map.fitBounds(bounds, { padding:[30,30], maxZoom: 12 });
+  } else {
+    map.fitBounds(apsBounds.pad(0.02));
+  }
+}
+
+function renderList() {
+  const el = document.getElementById('schoolList');
+  if (!filteredSchools.length) {
+    el.innerHTML = '<div class="empty">No schools match the current filters.</div>';
+    return;
+  }
+  el.innerHTML = filteredSchools.slice(0, 100).map(s => `
+    <div class="school-item" onclick="selectSchool('${s.__id}')">
+      <h4>${s.school_name}</h4>
+      <p>${levelLabel(s.level)} · ${formatNumber(s.enrollment)} students · ${s.school_board_district}</p>
+    </div>
+  `).join('');
+}
+
+function chip(text, cls='info') {
+  return `<span class="chip ${cls}">${text}</span>`;
+}
+
+function renderTable() {
+  const body = document.getElementById('schoolTableBody');
+  if (!filteredSchools.length) {
+    body.innerHTML = '<tr><td colspan="5" class="empty">No schools match the current filters.</td></tr>';
+    return;
+  }
+  body.innerHTML = filteredSchools.map(s => `
+    <tr onclick="selectSchool('${s.__id}')" style="cursor:pointer">
+      <td><strong>${s.school_name}</strong><br><span style="color:#5f7381;font-size:.82rem">ZIP ${s.zip_code}</span></td>
+      <td>${levelLabel(s.level)}</td>
+      <td>${formatNumber(s.enrollment)}</td>
+      <td>${s.school_board_district}</td>
+      <td>
+        ${chip('ABC ' + s.abc_community_school, s.abc_community_school === 'Yes' ? 'yes' : 'no')}
+        ${chip('Bilingual ' + s.bilingual_education_program, s.bilingual_education_program === 'Yes' ? 'yes' : 'no')}
+        ${chip('SpEd Hub ' + s.special_ed_hub, s.special_ed_hub === 'Yes' ? 'yes' : 'no')}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderDetail() {
+  const target = filteredSchools.find(s => s.__id === selectedId) || schools.find(s => s.__id === selectedId);
+  const panel = document.getElementById('detailPanel');
+  if (!target) {
+    panel.innerHTML = '<div class="empty">No school selected yet.</div>';
+    return;
+  }
+  panel.innerHTML = `
+    <h2>${target.school_name}</h2>
+    <div style="margin-bottom:10px">
+      ${chip(levelLabel(target.level))}
+      ${chip(target.school_board_district)}
+      ${chip(target.calendar || 'Calendar n/a')}
+    </div>
+    <div class="detail-grid">
+      <div class="detail-card"><div class="label">Enrollment</div><div class="value">${formatNumber(target.enrollment)}</div></div>
+      <div class="detail-card"><div class="label">Established</div><div class="value">${target.school_established_date || '—'}</div></div>
+      <div class="detail-card"><div class="label">ABC Community School</div><div class="value">${target.abc_community_school}</div></div>
+      <div class="detail-card"><div class="label">Bilingual Program</div><div class="value">${target.bilingual_education_program}</div></div>
+      <div class="detail-card"><div class="label">Special Ed Hub</div><div class="value">${target.special_ed_hub}</div></div>
+      <div class="detail-card"><div class="label">ZIP Code</div><div class="value">${target.zip_code || '—'}</div></div>
+    </div>
+    <div class="langs">
+      <strong>Home languages other than English</strong>
+      <div>${target.home_language_other_than_english || 'No languages listed.'}</div>
+    </div>
+    <div style="margin-top:14px; color:#5f7381; font-size:.88rem;">
+      Map coordinates: ${target.latitude?.toFixed?.(4) ?? '—'}, ${target.longitude?.toFixed?.(4) ?? '—'}
+    </div>
+  `;
+}
+
+function selectSchool(id, pan = true) {
+  selectedId = id;
+  renderDetail();
+  const s = schools.find(x => x.__id === id);
+  if (s && pan && typeof s.latitude === 'number' && typeof s.longitude === 'number') {
+    map.setView([s.latitude, s.longitude], 13, { animate:true });
+  }
+}
+
+function resetFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('levelFilter').value = '';
+  document.getElementById('districtFilter').value = '';
+  document.getElementById('calendarFilter').value = '';
+  document.getElementById('zipFilter').value = '';
+  document.getElementById('minEnrollment').value = 0;
+  document.getElementById('minEnrollmentValue').textContent = '0';
+  document.getElementById('abcOnly').checked = false;
+  document.getElementById('bilingualOnly').checked = false;
+  document.getElementById('specialEdOnly').checked = false;
+  applyFilters();
+}
+
+document.getElementById('applyFilters').addEventListener('click', applyFilters);
+document.getElementById('resetFilters').addEventListener('click', resetFilters);
+document.getElementById('minEnrollment').addEventListener('input', (e) => {
+  document.getElementById('minEnrollmentValue').textContent = formatNumber(Number(e.target.value));
+});
+document.getElementById('searchInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') applyFilters();
+});
+['levelFilter','districtFilter','calendarFilter','zipFilter','abcOnly','bilingualOnly','specialEdOnly'].forEach(id => {
+  document.getElementById(id).addEventListener('change', applyFilters);
+});
+
+document.querySelectorAll('th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if (sortState.key === key) {
+      sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortState.key = key;
+      sortState.dir = 'asc';
+    }
+    sortAndRender();
+  });
+});
+
+loadSchools();
+</script>
+</body>
+</html>
