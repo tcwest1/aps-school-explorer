@@ -579,8 +579,6 @@ function resetFilters() {
   document.getElementById('districtFilter').value = '';
   document.getElementById('calendarFilter').value = '';
   document.getElementById('zipFilter').value = '';
-  document.getElementById('minEnrollment').value = 0;
-  document.getElementById('minEnrollmentValue').textContent = '0';
   document.getElementById('abcOnly').checked = false;
   document.getElementById('bilingualOnly').checked = false;
   document.getElementById('specialEdOnly').checked = false;
@@ -590,8 +588,6 @@ function resetFilters() {
 document.getElementById('applyFilters').addEventListener('click', applyFilters);
 document.getElementById('resetFilters').addEventListener('click', resetFilters);
 document.getElementById('minEnrollment').addEventListener('input', (e) => {
-  document.getElementById('minEnrollmentValue').textContent = formatNumber(Number(e.target.value));
-});
 document.getElementById('searchInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') applyFilters();
 });
