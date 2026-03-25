@@ -160,7 +160,7 @@
     <aside class="panel">
       <div class="panel-header">
         <h2 class="panel-title">Filters</h2>
-        <p class="panel-subtitle">Narrow schools by level, school board district, calendar, geography, programs, and enrollment.</p>
+        <p class="panel-subtitle">Narrow schools by level, school board district, calendar, geography, and programs.</p>
       </div>
       <div class="controls">
         <div class="control">
@@ -190,11 +190,6 @@
           <select id="zipFilter">
             <option value="">All ZIP codes</option>
           </select>
-        </div>
-        <div class="control">
-          <label for="minEnrollment">Minimum enrollment</label>
-          <input id="minEnrollment" type="range" min="0" max="3000" step="25" value="0" />
-          <div class="panel-subtitle"><span id="minEnrollmentValue">0</span> students or more</div>
         </div>
         <div class="control">
           <label>School Programs</label>
@@ -413,7 +408,6 @@ function currentFilters() {
     district: document.getElementById('districtFilter').value,
     calendar: document.getElementById('calendarFilter').value,
     zip: document.getElementById('zipFilter').value,
-    minEnrollment: Number(document.getElementById('minEnrollment').value || 0),
     abcOnly: document.getElementById('abcOnly').checked,
     bilingualOnly: document.getElementById('bilingualOnly').checked,
     specialEdOnly: document.getElementById('specialEdOnly').checked,
@@ -428,12 +422,11 @@ function applyFilters() {
     const matchesDistrict = !f.district || s.school_board_district === f.district;
     const matchesCalendar = !f.calendar || s.calendar === f.calendar;
     const matchesZip = !f.zip || s.zip_code === f.zip;
-    const matchesEnrollment = (s.enrollment || 0) >= f.minEnrollment;
     const matchesABC = !f.abcOnly || s.abc_community_school === 'Yes';
     const matchesBilingual = !f.bilingualOnly || s.bilingual_education_program === 'Yes';
     const matchesSpecialEd = !f.specialEdOnly || s.special_ed_hub === 'Yes';
     return matchesSearch && matchesLevel && matchesDistrict && matchesCalendar && matchesZip &&
-      matchesEnrollment && matchesABC && matchesBilingual && matchesSpecialEd;
+      matchesABC && matchesBilingual && matchesSpecialEd;
   });
   sortAndRender();
 }
@@ -579,8 +572,6 @@ function resetFilters() {
   document.getElementById('districtFilter').value = '';
   document.getElementById('calendarFilter').value = '';
   document.getElementById('zipFilter').value = '';
-  document.getElementById('minEnrollment').value = 0;
-  document.getElementById('minEnrollmentValue').textContent = '0';
   document.getElementById('abcOnly').checked = false;
   document.getElementById('bilingualOnly').checked = false;
   document.getElementById('specialEdOnly').checked = false;
@@ -589,9 +580,6 @@ function resetFilters() {
 
 document.getElementById('applyFilters').addEventListener('click', applyFilters);
 document.getElementById('resetFilters').addEventListener('click', resetFilters);
-document.getElementById('minEnrollment').addEventListener('input', (e) => {
-  document.getElementById('minEnrollmentValue').textContent = formatNumber(Number(e.target.value));
-});
 document.getElementById('searchInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') applyFilters();
 });
